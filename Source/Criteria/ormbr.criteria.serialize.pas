@@ -404,7 +404,7 @@ begin
   Result := '';
   for i := 0 to qualifiers.Count - 1 do
     case qualifiers[i].Qualifier of
-      sqFirst:    Result := Concatenate([Result, 'FIRST', IntToStr(qualifiers[i].Value)]);
+      sqFirst:    Result := Concatenate([Result, 'TOP', IntToStr(qualifiers[i].Value)]);  //FIRST - TOP
       sqSkip:     Result := Concatenate([Result, 'SKIP', IntToStr(qualifiers[i].Value)]);
       sqDistinct: Result := Concatenate([Result, 'DISTINCT']);
       else raise Exception.Create('TGpSQLSerializer.SerializeSelectQualifiers: Unknown qualifier');

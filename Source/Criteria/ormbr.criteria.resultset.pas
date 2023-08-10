@@ -6,7 +6,8 @@ uses
   Generics.Collections,
 //  ormbr.criteria,
   dbebr.factory.interfaces,
-  ormbr.bind;
+  ormbr.bind,
+  Dyn.View.Monitor;
 
 type
   ICriteriaSet = interface
@@ -51,12 +52,21 @@ type
     function AsValue: M;
   end;
 
+  procedure MonitorSQL(Value : string);
+
 implementation
+
+procedure MonitorSQL(Value : string);
+begin
+  if TMonitorSQL.HasInstance then
+   TMonitorSQL.GetInstance.Command(Value, nil);
+end;
 
 { TCriteria<M> }
 
 function TCriteria.AsResultSet: IDBResultSet;
 begin
+  MonitorSQL(FSQL);
   Result := FConnection.CreateResultSet(FSQL);
 end;
 
@@ -88,6 +98,7 @@ var
   LResultSet: IDBResultSet;
   LObject: M;
 begin
+  MonitorSQL(FSQL);
   LResultSet := FConnection.CreateResultSet(FSQL);
   try
     if LResultSet.RecordCount = 0 then
@@ -101,7 +112,7 @@ begin
     end;
   finally
     LResultSet.Close;
-    FConnection.Disconnect;
+//    FConnection.Disconnect;
   end;
 end;
 
@@ -109,6 +120,7 @@ function TCriteria<M>.AsValue: M;
 var
   LResultSet: IDBResultSet;
 begin
+  MonitorSQL(FSQL);
   LResultSet := FConnection.CreateResultSet(FSQL);
   try
     if LResultSet.RecordCount = 0 then
@@ -117,7 +129,7 @@ begin
     TBind.Instance.SetFieldToProperty(LResultSet, Result);
   finally
     LResultSet.Close;
-    FConnection.Disconnect;
+//    FConnection.Disconnect;
   end;
 end;
 

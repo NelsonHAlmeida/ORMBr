@@ -18,7 +18,7 @@ uses
   Generics.Collections, Vcl.Grids, Vcl.DBGrids, Vcl.WinXCtrls, Vcl.Imaging.pngimage,
   Vcl.DBCGrids,StrUtils, FireDAC.Phys.OracleDef, FireDAC.Phys.DB2Def,
   FireDAC.Phys.IBDef, FireDAC.Phys.IB, FireDAC.Phys.DB2, FireDAC.Phys.Oracle,
-  FireDAC.Phys.PGDef, FireDAC.Phys.PG;
+  FireDAC.Phys.PGDef, FireDAC.Phys.PG, FireDAC.Phys.SQLiteWrapper.Stat;
 
 type
   TFrmPrincipal = class(TForm)
@@ -508,6 +508,7 @@ procedure  TFrmPrincipal.LoadPropertys(Index : Integer);
     if pTipo = 'Double'    then Result := 'ftBCD';
     if pTipo = 'Integer'   then Result := 'ftInteger';
     if pTipo = 'TTime'     then Result := 'ftTime';
+//    if pTipo = 'TDate'     then Result := 'ftDate';
     if pTipo = 'TDateTime' then Result := 'ftDateTime';
     if pTipo = 'Boolean'   then Result := 'ftBoolean';
     if pTipo = 'Currency'  then Result := 'ftCurrency';
@@ -517,18 +518,25 @@ procedure  TFrmPrincipal.LoadPropertys(Index : Integer);
   //Cria o Corpo das Propriedades e Fields
   procedure CreateBodyProperty(_ListIndex: Integer; _Campo, _Tipo, _ReadWrite, _Align, _Default: string; _Index: Integer; _Size: Integer = 0; _Precision: Integer = 0; _Scale: Integer = 0; _Mask: string = '''''');
   var
+    LField: string;
     NullableTipo: string;
     sKey: TPair<String,String>;
     iPos: Integer;
   begin
      NullableTipo := _Tipo;
 
+     LField := Copy(_Campo, Pos('_',_Campo)+ 1, Length(_Campo));
+
+     if Combo_Connection.ItemIndex = 1 then
+        LField := _Campo;
+
      if not Entidade.FieldByName(_Campo).Required then
        if _Tipo <> 'TBlob' then
           NullableTipo := 'Nullable<' + NullableTipo + '>';
 
      // Fields
-     _FieldsProperty.Add('    F' + _Campo + ': ' + NullableTipo + ';');
+     _FieldsProperty.Add('    F' + LField + ': ' + NullableTipo + ';');
+
 
      // PrimaryKey()
      // [PrimaryKey('Id', NotInc, NoSort, False, 'Chave primária')]
@@ -556,8 +564,11 @@ procedure  TFrmPrincipal.LoadPropertys(Index : Integer);
          _Propertys.Add(sKey.Value);
      end;
 
-     _Propertys.Add('    [Dictionary(''' + _Campo + ''', ''Mensagem de validação'', ' + _Default + ', '''', ' + _Mask + ', ' + _Align +')]');
-     _Propertys.Add('    property ' + IfThen(checkLowerCase.Checked, LowerCase(_Campo), _Campo) + ': ' + NullableTipo +
+
+     if Combo_Connection.ItemIndex = 1 then
+
+     _Propertys.Add('    [Dictionary(''' + LField + ''', ''Mensagem de validação'', ' + _Default + ', '''', ' + _Mask + ', ' + _Align +')]');
+     _Propertys.Add('    property ' + IfThen(checkLowerCase.Checked, LowerCase(_Campo), LField) + ': ' + NullableTipo +
                          {' index ' + IntToStr(_Index) +} _ReadWrite);
   end;
 
@@ -578,6 +589,7 @@ var
   L, P, S: Integer;
   sUses: string;
   FK: Integer;
+  LField : string;
 begin
   /// ForeignKeys
   Metadata.Close;
@@ -662,17 +674,23 @@ begin
   end;
 
   Entidade.Close;
-  Entidade.SQL.Text := 'SELECT * FROM ' + lstTabelas.Items[index];
+  Entidade.SQL.Text := 'SELECT * FROM ' + lstTabelas.Items[index] + ' WHERE 0=1';
   Entidade.Open;
 
   for I := 0 to Entidade.FieldList.Count -1 do
   begin
-    if I > 0 then _Propertys.Add('');
-      ReadWrite := ' read F'  + Entidade.FieldList.Fields[i].FieldName +
-                   ' write F' + Entidade.FieldList.Fields[i].FieldName + ';';
 
     Campo  := Entidade.FieldList.Fields[i].FieldName;
     L      := Entidade.FieldList.Fields[i].Size;
+    LField := Copy(Campo, Pos('_',Campo)+ 1, Length(Campo));
+
+    if Combo_Connection.ItemIndex = 1 then LField := Campo;
+
+    if I > 0 then _Propertys.Add('');   //aki Formatar FieldName Class
+      ReadWrite := ' read F'  + LField +
+                   ' write F' + LField + ';';
+
+
 
     if Entidade.FieldByName(Campo).DataType in [ftString, ftWideString] then
        CreateBodyProperty(index,Campo,'String',ReadWrite,'taLeftJustify','''''',I,L)
@@ -689,7 +707,13 @@ begin
     if Entidade.FieldByName(Campo).DataType in [ftTime] then
        CreateBodyProperty(index,Campo,'TTime',ReadWrite,'taCenter','''''',I)
     else
-    if Entidade.FieldByName(Campo).DataType in [ftDate, ftDateTime] then
+//    if Entidade.FieldByName(Campo).DataType in [ftDate] then
+//    begin
+////       if Entidade.FieldList.Fields[i].Required then
+//      CreateBodyProperty(index,Campo,'TDate',ReadWrite,'taCenter','''''',I);
+//    end
+//    else
+    if Entidade.FieldByName(Campo).DataType in [ftDate,ftDateTime] then
     begin
        if Entidade.FieldList.Fields[i].Required then
           CreateBodyProperty(index,Campo,'TDateTime',ReadWrite,'taCenter','''Date''',I,0,0,0,'''!##/##/####;1;_''')
@@ -752,7 +776,7 @@ begin
   //Carrega propriedades
   LoadPropertys(index);
   //
-  memModel.Lines.Add('unit '+edtProjeto.Text+LowerCase( lstTabelas.Items.Strings[index] )+ ';');
+  memModel.Lines.Add('unit '+edtProjeto.Text+ lstTabelas.Items.Strings[index] + ';');
   memModel.Lines.Add('');
   memModel.Lines.Add('interface');
   memModel.Lines.Add('');
@@ -768,11 +792,11 @@ begin
     memModel.Lines.Add(_UsesRelations[iKey] + ',');
   memModel.Lines.Add('  ormbr.types.blob, ');
   memModel.Lines.Add('  ormbr.types.lazy, ');
-  memModel.Lines.Add('  ormbr.types.mapping, ');
+  memModel.Lines.Add('  dbcbr.types.mapping, ');
   memModel.Lines.Add('  ormbr.types.nullable, ');
-  memModel.Lines.Add('  ormbr.mapping.classes, ');
-  memModel.Lines.Add('  ormbr.mapping.register, ');
-  memModel.Lines.Add('  ormbr.mapping.attributes; ');
+  memModel.Lines.Add('  dbcbr.mapping.classes, ');
+  memModel.Lines.Add('  dbcbr.mapping.register, ');
+  memModel.Lines.Add('  dbcbr.mapping.attributes; ');
   memModel.Lines.Add('');
   memModel.Lines.Add('type');
   memModel.Lines.Add('  [Entity]');

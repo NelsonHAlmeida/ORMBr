@@ -393,6 +393,7 @@ var
   LColumnName: String;
   LFor: Integer;
   LScopeWhere: String;
+  LListPKs : TArray<String>;
 //  LID: string;
 begin
   Result := '';
@@ -401,19 +402,21 @@ begin
     Result := ' WHERE ' + LScopeWhere;
   if VarToStr(AID) = '-1' then
     Exit;
+  LListPKs := VarToStr(AID).Split([';']);
   LPrimaryKey := TMappingExplorer.GetMappingPrimaryKey(AClass);
   if LPrimaryKey <> nil then
   begin
     Result := Result + IfThen(LScopeWhere = '', ' WHERE ', ' AND ');
     for LFor := 0 to LPrimaryKey.Columns.Count -1 do
     begin
-      if LFor > 0 then
-       Continue;
+      if (not VarIsStr(AID)) or (not VarToStr(AID).Contains(';')) then
+        if LFor > 0 then Continue;
+      if LFor > 0 then Result := Result + ' AND ';
       LColumnName := ATableName + '.' + LPrimaryKey.Columns[LFor];
       if TVarData(AID).VType = varInteger then
         Result := Result + LColumnName + ' = ' + IntToStr(AID)
       else
-        Result := Result + LColumnName + ' = ' + QuotedStr(AID);
+        Result := Result + LColumnName + ' = ' + QuotedStr(LListPKs[LFor]);
 
         { TODO -oISAQUE -cREVISÃO :
           Se você sentiu falta desse trecho de código, entre em contato,

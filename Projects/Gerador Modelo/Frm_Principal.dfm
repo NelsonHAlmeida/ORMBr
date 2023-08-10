@@ -236,7 +236,7 @@ object FrmPrincipal: TFrmPrincipal
         Width = 121
         Height = 24
         TabOrder = 1
-        Text = 'ormbr.model.'
+        Text = 'Dyn.Model.Ormbr.Entity.'
       end
       object Panel2: TPanel
         Left = 5
@@ -340,8 +340,6 @@ object FrmPrincipal: TFrmPrincipal
           ParentFont = False
           ScrollBars = ssBoth
           TabOrder = 0
-          ExplicitLeft = -8
-          ExplicitTop = -183
         end
       end
     end
